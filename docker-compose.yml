@@ -26,8 +26,12 @@ services:
   api:
     build: ./backend
     env_file: ./backend/.env
+    environment:
+      RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
     ports:
       - "8000:8000"
+    volumes:
+      - document_storage_v2:/app/data/documents
     healthcheck:
       test:
         [
@@ -51,6 +55,8 @@ services:
   worker:
     build: ./backend
     env_file: ./backend/.env
+    environment:
+      RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
     command:
       [
         "uv",
@@ -59,6 +65,29 @@ services:
         "-A",
         "app.infrastructure.task_queue.celery_app.celery_app",
         "worker",
+        "--loglevel=INFO",
+      ]
+    volumes:
+      - document_storage_v2:/app/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  scheduler:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
+    command:
+      [
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "app.infrastructure.task_queue.celery_app.celery_app",
+        "beat",
         "--loglevel=INFO",
       ]
     depends_on:
@@ -70,3 +99,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  document_storage_v2:

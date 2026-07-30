@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
     jwt_audience: str = "rag-copilot-api"
     access_token_ttl_minutes: int = Field(default=15, ge=5, le=60)
     refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
+    document_storage_path: Path = Path("data/documents")
+    max_document_size_bytes: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1024,
+        le=100 * 1024 * 1024,
+    )
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
