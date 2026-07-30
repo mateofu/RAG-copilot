@@ -43,6 +43,13 @@ Liveness: `GET http://localhost:8000/api/v1/health/live`
 
 Readiness: `GET http://localhost:8000/api/v1/health/ready`
 
+Registro inicial de empresa: `POST http://localhost:8000/api/v1/organizations`
+
+El registro publico se controla con
+`RAG_COPILOT_PUBLIC_REGISTRATION_ENABLED`. Esta habilitado en el entorno local y
+debe permanecer deshabilitado en produccion hasta disponer de rate limiting,
+verificacion de correo y proteccion contra abuso.
+
 ## Ejecucion local
 
 Requiere Python 3.12 o superior, PostgreSQL, Redis y `uv`.

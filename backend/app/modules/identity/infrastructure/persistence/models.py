@@ -19,7 +19,7 @@ def enum_values[EnumType: StrEnum](enum_type: type[EnumType]) -> list[str]:
     return [member.value for member in enum_type]
 
 
-class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class OrganizationModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "organizations"
     __table_args__ = (
         CheckConstraint(
@@ -46,7 +46,7 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
-class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class UserModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
@@ -80,7 +80,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
 
-class Membership(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+class MembershipModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "memberships"
     __table_args__ = (
         UniqueConstraint(

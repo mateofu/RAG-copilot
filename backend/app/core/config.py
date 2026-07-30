@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    public_registration_enabled: bool = False
 
     @property
     def is_production(self) -> bool:
