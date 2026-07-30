@@ -59,3 +59,50 @@ jobs:
         with:
           context: backend
           push: false
+
+  database-integration:
+    name: Database integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: rag_copilot_test
+          POSTGRES_USER: rag
+          POSTGRES_PASSWORD: rag
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rag -d rag_copilot_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      RAG_COPILOT_DATABASE_URL: postgresql+psycopg://rag:rag@localhost:5432/rag_copilot_test
+      RUN_INTEGRATION_TESTS: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          working-directory: backend
+
+      - name: Install locked dependencies
+        run: uv sync --frozen
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Check migration drift
+        run: uv run alembic check
+
+      - name: Test database constraints
+        run: uv run pytest -m integration

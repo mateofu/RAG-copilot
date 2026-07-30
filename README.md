@@ -9,19 +9,22 @@ no estan implementados.
 - API FastAPI versionada en `/api/v1`.
 - Configuracion tipada con `pydantic-settings`.
 - SQLAlchemy asincrono preparado para PostgreSQL.
-- Modelos preliminares de documentos y fragmentos.
+- Esquema inicial de organizaciones, usuarios y membresias.
+- Roles y permisos de dominio para aislamiento multiempresa.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
+- Migraciones Alembic con extensiones `vector` y `citext`.
 - Logs estructurados en JSON.
-- Health check y prueba automatica inicial.
+- Liveness y readiness para PostgreSQL y Redis.
 - Docker Compose para API, worker, PostgreSQL y Redis.
+- CI para formato, lint, tipos, pruebas, migraciones y build.
 
 ## Fuera del alcance actual
 
-Todavia no existen autenticacion, organizaciones, RBAC, migraciones, carga de
-PDF, tareas de ingesta, embeddings, recuperacion, conversaciones ni respuestas
-RAG. Consulta [la arquitectura](docs/ARCHITECTURE.md) y
-[el roadmap](docs/ROADMAP.md) antes de implementar un nuevo modulo.
+Todavia no existen endpoints de identidad, autenticacion, JWT, carga de PDF,
+tareas de ingesta, embeddings, recuperacion, conversaciones ni respuestas RAG.
+Consulta [la arquitectura](docs/ARCHITECTURE.md) y [el roadmap](docs/ROADMAP.md)
+antes de implementar un nuevo modulo.
 
 ## Ejecucion con Docker
 

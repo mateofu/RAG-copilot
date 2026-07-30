@@ -45,11 +45,12 @@ backend/app/
 |   `-- http/
 |       `-- api_v1/               # Adaptador de entrada FastAPI
 |-- modules/
-|   `-- documents/
-|       |-- domain/               # Reglas sin dependencias de frameworks
-|       |-- application/          # Se agrega al existir el primer caso de uso
-|       `-- infrastructure/
-|           `-- persistence/      # Modelos y repositorios SQLAlchemy
+|   |-- identity/
+|   |   |-- domain/               # Reglas sin dependencias de frameworks
+|   |   |-- application/          # Se agrega al existir el primer caso de uso
+|   |   `-- infrastructure/
+|   |       `-- persistence/      # Modelos y repositorios SQLAlchemy
+|   `-- system/                   # Diagnosticos operativos
 `-- main.py                       # Composition root de la API
 ```
 
