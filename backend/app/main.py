@@ -9,6 +9,11 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.infrastructure.database.session import SessionFactory, engine
 from app.interfaces.http.api_v1.router import api_router
+from app.modules.documents.infrastructure.persistence.unit_of_work import (
+    SqlAlchemyDocumentQueryUnitOfWork,
+    SqlAlchemyDocumentUnitOfWork,
+)
+from app.modules.documents.infrastructure.storage.local import LocalDocumentStorage
 from app.modules.identity.infrastructure.passwords import Argon2PasswordHasher
 from app.modules.identity.infrastructure.persistence.unit_of_work import (
     SqlAlchemyIdentityUnitOfWork,
@@ -47,6 +52,8 @@ def create_app() -> FastAPI:
     )
     app.state.public_registration_enabled = settings.public_registration_enabled
     app.state.identity_uow_factory = lambda: SqlAlchemyIdentityUnitOfWork(SessionFactory)
+    app.state.document_uow_factory = lambda: SqlAlchemyDocumentUnitOfWork(SessionFactory)
+    app.state.document_query_uow_factory = lambda: SqlAlchemyDocumentQueryUnitOfWork(SessionFactory)
     password_hasher = Argon2PasswordHasher()
     app.state.password_hasher = password_hasher
     app.state.dummy_password_hash = password_hasher.hash(
@@ -54,6 +61,10 @@ def create_app() -> FastAPI:
     )
     app.state.refresh_token_service = SecureRefreshTokenService()
     app.state.refresh_token_ttl = timedelta(days=settings.refresh_token_ttl_days)
+    app.state.document_storage = LocalDocumentStorage(
+        root=settings.document_storage_path,
+        max_size_bytes=settings.max_document_size_bytes,
+    )
     app.state.access_token_service = (
         JwtAccessTokenService(
             secret=settings.jwt_secret.get_secret_value(),

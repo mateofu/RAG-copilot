@@ -1,8 +1,8 @@
 # RAG Copilot
 
-Copiloto documental multiempresa basado en RAG. El proyecto esta en fase de
-fundacion: la infraestructura minima existe, pero la ingesta y el motor RAG aun
-no estan implementados.
+Copiloto documental multiempresa basado en RAG. La identidad, autenticacion e
+ingesta PDF ya estan implementadas; el indice vectorial y las respuestas RAG
+pertenecen al siguiente hito.
 
 ## Capacidades actuales
 
@@ -15,6 +15,10 @@ no estan implementados.
 - Autenticacion con access tokens JWT y refresh tokens rotatorios.
 - Sesiones revocables y deteccion de reutilizacion de refresh tokens.
 - Contexto organizacional validado contra membresias activas.
+- Carga PDF segura por streaming con limite de tamano y SHA-256.
+- Metadatos, versiones y deduplicacion aislados por organizacion.
+- Outbox transaccional, publicador y worker Celery idempotente.
+- Extraccion de texto por pagina y fragmentacion persistida.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
 - Migraciones Alembic con extensiones `vector` y `citext`.
@@ -25,8 +29,8 @@ no estan implementados.
 
 ## Fuera del alcance actual
 
-Todavia no existen carga de PDF, tareas de ingesta, embeddings, recuperacion,
-conversaciones ni respuestas RAG. Consulta
+Todavia no existen embeddings, recuperacion vectorial, conversaciones ni
+respuestas RAG. Consulta
 [la arquitectura](docs/ARCHITECTURE.md) y [el roadmap](docs/ROADMAP.md) antes de
 implementar un nuevo modulo. Las reglas para secretos y tokens estan en
 [seguridad](docs/SECURITY.md).
@@ -58,6 +62,19 @@ Autenticacion:
 - `GET /api/v1/auth/me`
 - `GET /api/v1/auth/context`, con `Authorization: Bearer <token>` y
   `X-Organization-Id: <uuid>`
+
+Carga documental:
+
+- `POST /api/v1/documents`
+- `GET /api/v1/documents`
+- `GET /api/v1/documents/{documentNumber}`
+- Encabezados: `Authorization: Bearer <token>` y
+  `X-Organization-Id: <uuid>`.
+- Cuerpo `multipart/form-data`: campo `title` y archivo `file`.
+- Solo se aceptan PDFs de hasta 25 MB por defecto. El tipo declarado y la firma
+  del contenido se validan antes de persistir sus metadatos.
+- La respuesta inicial queda en estado `pending`; el scheduler publica el evento
+  y el worker actualiza la version a `ready` o `failed`.
 
 El registro publico se controla con
 `RAG_COPILOT_PUBLIC_REGISTRATION_ENABLED`. Esta habilitado en el entorno local y

@@ -27,11 +27,11 @@ si, incluso usando identificadores validos de la otra.
 
 ## Hito 2: documentos e ingesta
 
-- Interfaz de almacenamiento y adaptador local.
-- Carga segura de PDF por streaming.
-- Versiones, hash, deduplicacion y estados.
-- Outbox transaccional y workers idempotentes.
-- Extraccion, chunking estructural y metadatos de pagina.
+- [x] Interfaz de almacenamiento y adaptador local.
+- [x] Carga segura de PDF por streaming.
+- [x] Versiones, hash, deduplicacion y estados.
+- [x] Outbox transaccional y workers idempotentes.
+- [x] Extraccion, chunking estructural y metadatos de pagina.
 
 Criterio de salida: reintentar cualquier paso no duplica documentos ni chunks y
 los fallos pueden diagnosticarse y recuperarse.
