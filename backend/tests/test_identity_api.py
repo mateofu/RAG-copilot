@@ -46,6 +46,9 @@ class ApiPasswordHasher:
     def hash(self, password: str) -> str:
         return "api-test-hash"
 
+    def verify(self, password: str, password_hash: str) -> bool:
+        return password_hash == self.hash(password)
+
 
 async def test_bootstrap_organization_endpoint() -> None:
     app.state.public_registration_enabled = True

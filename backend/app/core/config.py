@@ -1,6 +1,7 @@
 from functools import lru_cache
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +25,28 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     public_registration_enabled: bool = False
+    jwt_secret: SecretStr | None = None
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    jwt_issuer: str = "rag-copilot"
+    jwt_audience: str = "rag-copilot-api"
+    access_token_ttl_minutes: int = Field(default=15, ge=5, le=60)
+    refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if not self.is_production:
+            return self
+
+        if self.jwt_secret is None:
+            raise ValueError("RAG_COPILOT_JWT_SECRET is required in production")
+        secret = self.jwt_secret.get_secret_value()
+        if len(secret) < 32 or secret.startswith("replace-"):
+            raise ValueError("RAG_COPILOT_JWT_SECRET must be a strong production secret")
+        if self.debug:
+            raise ValueError("DEBUG cannot be enabled in production")
+        if self.public_registration_enabled:
+            raise ValueError("public registration must be disabled in production")
+        return self
 
     @property
     def is_production(self) -> bool:
