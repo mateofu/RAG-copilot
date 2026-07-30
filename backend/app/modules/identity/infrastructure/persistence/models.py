@@ -1,7 +1,16 @@
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import Boolean, CheckConstraint, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -115,4 +124,25 @@ class MembershipModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=MembershipStatus.ACTIVE,
         server_default=MembershipStatus.ACTIVE.value,
         nullable=False,
+    )
+
+
+class AuthSessionModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "auth_sessions"
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    family_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), index=True, nullable=False)
+    refresh_token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=False
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    replaced_by_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("auth_sessions.id", ondelete="SET NULL"),
     )

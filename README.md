@@ -11,6 +11,10 @@ no estan implementados.
 - SQLAlchemy asincrono preparado para PostgreSQL.
 - Esquema inicial de organizaciones, usuarios y membresias.
 - Roles y permisos de dominio para aislamiento multiempresa.
+- Registro inicial de organizaciones y propietarios.
+- Autenticacion con access tokens JWT y refresh tokens rotatorios.
+- Sesiones revocables y deteccion de reutilizacion de refresh tokens.
+- Contexto organizacional validado contra membresias activas.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
 - Migraciones Alembic con extensiones `vector` y `citext`.
@@ -21,10 +25,11 @@ no estan implementados.
 
 ## Fuera del alcance actual
 
-Todavia no existen endpoints de identidad, autenticacion, JWT, carga de PDF,
-tareas de ingesta, embeddings, recuperacion, conversaciones ni respuestas RAG.
-Consulta [la arquitectura](docs/ARCHITECTURE.md) y [el roadmap](docs/ROADMAP.md)
-antes de implementar un nuevo modulo.
+Todavia no existen carga de PDF, tareas de ingesta, embeddings, recuperacion,
+conversaciones ni respuestas RAG. Consulta
+[la arquitectura](docs/ARCHITECTURE.md) y [el roadmap](docs/ROADMAP.md) antes de
+implementar un nuevo modulo. Las reglas para secretos y tokens estan en
+[seguridad](docs/SECURITY.md).
 
 ## Ejecucion con Docker
 
@@ -44,6 +49,15 @@ Liveness: `GET http://localhost:8000/api/v1/health/live`
 Readiness: `GET http://localhost:8000/api/v1/health/ready`
 
 Registro inicial de empresa: `POST http://localhost:8000/api/v1/organizations`
+
+Autenticacion:
+
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/auth/context`, con `Authorization: Bearer <token>` y
+  `X-Organization-Id: <uuid>`
 
 El registro publico se controla con
 `RAG_COPILOT_PUBLIC_REGISTRATION_ENABLED`. Esta habilitado en el entorno local y
