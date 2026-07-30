@@ -1,0 +1,55 @@
+[project]
+name = "rag-copilot-backend"
+version = "0.1.0"
+description = "Senior-grade multi-tenant RAG copilot backend"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116,<1.0",
+  "uvicorn[standard]>=0.35,<1.0",
+  "pydantic-settings>=2.10,<3.0",
+  "sqlalchemy[asyncio]>=2.0.41,<3.0",
+  "psycopg[binary]>=3.2.9,<4.0",
+  "alembic>=1.16,<2.0",
+  "pgvector>=0.4,<1.0",
+  "celery[redis]>=5.6,<6.0",
+  "redis>=6.2,<7.0",
+  "python-multipart>=0.0.20,<1.0",
+  "structlog>=25.4,<26.0",
+  "httpx>=0.28,<1.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9.0",
+  "pytest-asyncio>=1.1,<2.0",
+  "ruff>=0.12,<1.0",
+  "mypy>=1.17,<2.0",
+  "coverage>=7.10,<8.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

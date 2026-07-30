@@ -1,0 +1,10 @@
+Alembic migrations for the RAG Copilot database.
+
+Create revisions from the backend directory and review generated SQL before
+committing:
+
+    uv run alembic revision --autogenerate -m "description"
+
+Apply all migrations:
+
+    uv run alembic upgrade head
