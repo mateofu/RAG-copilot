@@ -6,8 +6,12 @@ from fastapi import FastAPI
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.infrastructure.database.session import engine
+from app.infrastructure.database.session import SessionFactory, engine
 from app.interfaces.http.api_v1.router import api_router
+from app.modules.identity.infrastructure.passwords import Argon2PasswordHasher
+from app.modules.identity.infrastructure.persistence.unit_of_work import (
+    SqlAlchemyIdentityUnitOfWork,
+)
 from app.modules.system.application.readiness import CheckReadiness
 from app.modules.system.infrastructure.probes import DatabaseProbe, RedisProbe
 
@@ -36,6 +40,9 @@ def create_app() -> FastAPI:
         probes=(DatabaseProbe(engine), RedisProbe(settings.redis_url)),
         timeout_seconds=settings.readiness_timeout_seconds,
     )
+    app.state.public_registration_enabled = settings.public_registration_enabled
+    app.state.identity_uow_factory = lambda: SqlAlchemyIdentityUnitOfWork(SessionFactory)
+    app.state.password_hasher = Argon2PasswordHasher()
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     return app
 

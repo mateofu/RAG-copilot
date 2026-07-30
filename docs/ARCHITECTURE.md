@@ -54,9 +54,14 @@ backend/app/
 `-- main.py                       # Composition root de la API
 ```
 
-Los modulos futuros (`identity`, `organizations`, `conversations`) siguen la
+Los modulos futuros (`documents`, `conversations`, `audit`) siguen la
 misma estructura, pero solo crean las capas que ya tengan una responsabilidad
 real.
+
+El modulo `identity` concentra inicialmente organizaciones, usuarios y
+membresias porque su alta y sus invariantes comparten una transaccion. Separarlo
+en servicios o modulos independientes antes de que sus ciclos de vida diverjan
+introduciria consistencia distribuida sin aportar aislamiento de negocio.
 
 ## Regla de dependencias
 
@@ -77,6 +82,18 @@ interfaces --> application --> domain
 
 `core` no es un contenedor de utilidades arbitrarias. Solo alberga configuracion,
 logging y politicas transversales que no pertenecen a un modulo.
+
+## Convenciones de nombres
+
+- Python, modulos, funciones, argumentos y atributos: `snake_case`.
+- Clases, protocolos y modelos: `PascalCase`.
+- Constantes y variables de entorno: `UPPER_SNAKE_CASE`.
+- Tablas, columnas, indices y restricciones SQL: `snake_case`.
+- Propiedades del contrato JSON HTTP: `camelCase`.
+- Rutas HTTP: sustantivos plurales en `kebab-case` cuando tengan varias palabras.
+
+Los esquemas HTTP convierten aliases en la frontera. El dominio y la persistencia
+no usan nombres de JavaScript.
 
 ## Multi-tenancy
 
