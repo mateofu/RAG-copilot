@@ -1,6 +1,7 @@
 from enum import StrEnum
 from uuid import UUID
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -8,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Identity,
+    Index,
     Integer,
     String,
     Text,
@@ -17,6 +19,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.modules.documents.application.embeddings import EMBEDDING_DIMENSIONS
 from app.modules.documents.domain.status import DocumentStatus
 
 
@@ -146,6 +149,23 @@ class DocumentChunkModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "chunk_index",
             name="uq_document_chunks_organization_version_index",
         ),
+        UniqueConstraint(
+            "organization_id",
+            "id",
+            name="uq_document_chunks_organization_id_id",
+        ),
+        CheckConstraint(
+            "(embedding IS NULL AND embedding_provider IS NULL AND embedding_model IS NULL) "
+            "OR (embedding IS NOT NULL AND embedding_provider IS NOT NULL "
+            "AND embedding_model IS NOT NULL)",
+            name="embedding_metadata_consistent",
+        ),
+        Index(
+            "ix_document_chunks_embedding_provenance",
+            "organization_id",
+            "embedding_provider",
+            "embedding_model",
+        ),
         ForeignKeyConstraint(
             ["organization_id", "document_id"],
             ["documents.organization_id", "documents.id"],
@@ -173,3 +193,9 @@ class DocumentChunkModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     char_start: Mapped[int] = mapped_column(Integer, nullable=False)
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIMENSIONS),
+        nullable=True,
+    )
+    embedding_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(128), nullable=True)

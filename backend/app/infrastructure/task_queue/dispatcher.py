@@ -6,6 +6,7 @@ from app.infrastructure.outbox.publisher import PendingOutboxEvent
 
 EVENT_TASKS = {
     "document.uploaded": "documents.ingest",
+    "document.reindex_requested": "documents.ingest",
 }
 
 

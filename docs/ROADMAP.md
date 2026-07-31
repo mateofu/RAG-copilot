@@ -38,10 +38,16 @@ los fallos pueden diagnosticarse y recuperarse.
 
 ## Hito 3: RAG trazable
 
-- Abstracciones de embeddings y chat.
-- Indice vectorial y filtros de tenant.
-- Conversaciones, mensajes, citas y presupuesto de contexto.
-- Limites y registro de consumo.
+- [x] Abstraccion inicial de embeddings y proveedor local determinista.
+- [x] Indice vectorial HNSW y filtros obligatorios de tenant.
+- [x] Endpoint de recuperacion con documento, pagina y fragmento.
+- [x] Proveedor local de embeddings semanticos con Ollama y `bge-m3`.
+- [x] Abstraccion y proveedor local de chat con Ollama.
+- [x] Primera vertical de conversaciones, mensajes y citas persistidas.
+- [x] Presupuesto inicial de contexto y defensa base contra instrucciones documentales.
+- [x] Registro de tokens reportados por el proveedor.
+- [ ] Continuidad de conversaciones con multiples turnos.
+- [ ] Cuotas y limites de consumo por organizacion.
 - Pruebas de integracion con proveedores simulados.
 
 Criterio de salida: cada afirmacion recuperada enlaza a fragmentos persistidos y

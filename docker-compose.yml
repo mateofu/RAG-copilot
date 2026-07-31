@@ -23,11 +23,45 @@ services:
     volumes:
       - redis_data:/data
 
+  ollama:
+    image: ollama/ollama@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ollama-model:
+    image: ollama/ollama@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    command: ["pull", "bge-m3"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  ollama-chat-model:
+    image: ollama/ollama@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    command: ["pull", "qwen2.5:1.5b"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
   api:
     build: ./backend
     env_file: ./backend/.env
     environment:
       RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
+      RAG_COPILOT_OLLAMA_BASE_URL: http://ollama:11434
+      RAG_COPILOT_EMBEDDING_PROVIDER: ${RAG_COPILOT_EMBEDDING_PROVIDER:-ollama}
     ports:
       - "8000:8000"
     volumes:
@@ -51,12 +85,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ollama-model:
+        condition: service_completed_successfully
+      ollama-chat-model:
+        condition: service_completed_successfully
 
   worker:
     build: ./backend
     env_file: ./backend/.env
     environment:
       RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
+      RAG_COPILOT_OLLAMA_BASE_URL: http://ollama:11434
+      RAG_COPILOT_EMBEDDING_PROVIDER: ${RAG_COPILOT_EMBEDDING_PROVIDER:-ollama}
     command:
       [
         "uv",
@@ -74,12 +114,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      ollama-model:
+        condition: service_completed_successfully
 
   scheduler:
     build: ./backend
     env_file: ./backend/.env
     environment:
       RAG_COPILOT_DOCUMENT_STORAGE_PATH: /app/data/documents
+      RAG_COPILOT_OLLAMA_BASE_URL: http://ollama:11434
+      RAG_COPILOT_EMBEDDING_PROVIDER: ${RAG_COPILOT_EMBEDDING_PROVIDER:-ollama}
     command:
       [
         "uv",
@@ -100,3 +144,4 @@ volumes:
   postgres_data:
   redis_data:
   document_storage_v2:
+  ollama_data:

@@ -3,6 +3,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from app.modules.documents.application.embeddings import EmbeddingProvider
 from app.modules.documents.application.extraction import PdfTextExtractor
 from app.modules.documents.application.storage import DocumentStorage
 from app.modules.documents.domain.chunking import TextChunk, chunk_pages
@@ -39,6 +40,9 @@ class IngestionRepository(Protocol):
         self,
         version: IngestionVersion,
         chunks: tuple[TextChunk, ...],
+        embeddings: tuple[tuple[float, ...], ...],
+        embedding_provider: str,
+        embedding_model: str,
     ) -> None: ...
 
     async def mark_ready(self, version_id: UUID) -> None: ...
@@ -84,10 +88,12 @@ class IngestDocument:
         unit_of_work: IngestionUnitOfWork,
         storage: DocumentStorage,
         extractor: PdfTextExtractor,
+        embeddings: EmbeddingProvider,
     ) -> None:
         self._unit_of_work = unit_of_work
         self._storage = storage
         self._extractor = extractor
+        self._embeddings = embeddings
 
     async def execute(self, command: IngestDocumentCommand) -> IngestDocumentResult:
         failure: DocumentIngestionError | None = None
@@ -114,7 +120,16 @@ class IngestDocument:
                 chunks = chunk_pages(pages)
                 if not chunks:
                     raise ValueError("no_extractable_text")
-                await self._unit_of_work.repository.replace_chunks(version, chunks)
+                embeddings = await self._embeddings.embed(tuple(chunk.content for chunk in chunks))
+                if len(embeddings) != len(chunks):
+                    raise ValueError("embedding_count_mismatch")
+                await self._unit_of_work.repository.replace_chunks(
+                    version,
+                    chunks,
+                    embeddings,
+                    self._embeddings.provider_name,
+                    self._embeddings.model_name,
+                )
                 await self._unit_of_work.repository.mark_ready(version.version_id)
                 result = IngestDocumentResult(
                     status=DocumentStatus.READY,
