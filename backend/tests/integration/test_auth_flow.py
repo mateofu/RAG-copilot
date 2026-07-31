@@ -46,8 +46,12 @@ pytestmark = [
 
 
 class IntegrationChatProvider:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
     async def answer(self, system_prompt: str, user_prompt: str) -> ChatResult:
         assert "integration document text" in user_prompt
+        self.prompts.append(user_prompt)
         return ChatResult("El documento contiene texto de integración [1].", 30, 9)
 
 
@@ -251,7 +255,8 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
             assert document_detail.json()["status"] == "ready"
 
             app.state.embedding_provider = HashingEmbeddingProvider()
-            app.state.chat_provider = IntegrationChatProvider()
+            integration_chat = IntegrationChatProvider()
+            app.state.chat_provider = integration_chat
             conversation = await client.post(
                 "/api/v1/conversations",
                 headers={
@@ -290,6 +295,49 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
             assert len(messages) == 2
             assert len(citations) == 1
             assert citations[0].chunk_id == chunks[0].id
+
+            continuation = await client.post(
+                f"/api/v1/conversations/{conversation_body['conversationId']}/messages",
+                headers={
+                    "Authorization": f"Bearer {original['accessToken']}",
+                    "X-Organization-Id": organization_id,
+                },
+                json={"question": "¿Puedes confirmarlo?"},
+            )
+            assert continuation.status_code == 200
+            assert continuation.json()["conversationId"] == conversation_body["conversationId"]
+            assert "user: ¿Qué contiene el documento?" in integration_chat.prompts[1]
+
+            conversation_list = await client.get(
+                "/api/v1/conversations",
+                headers={
+                    "Authorization": f"Bearer {original['accessToken']}",
+                    "X-Organization-Id": organization_id,
+                },
+            )
+            assert conversation_list.status_code == 200
+            assert conversation_list.json()["total"] == 1
+            assert conversation_list.json()["items"][0]["messageCount"] == 4
+
+            conversation_detail = await client.get(
+                f"/api/v1/conversations/{conversation_body['conversationId']}",
+                headers={
+                    "Authorization": f"Bearer {original['accessToken']}",
+                    "X-Organization-Id": organization_id,
+                },
+            )
+            assert conversation_detail.status_code == 200
+            assert len(conversation_detail.json()["messages"]) == 4
+            assert len(conversation_detail.json()["messages"][-1]["citations"]) == 1
+
+            missing_conversation = await client.get(
+                f"/api/v1/conversations/{uuid4()}",
+                headers={
+                    "Authorization": f"Bearer {original['accessToken']}",
+                    "X-Organization-Id": organization_id,
+                },
+            )
+            assert missing_conversation.status_code == 404
 
             rotation = await client.post(
                 "/api/v1/auth/refresh",

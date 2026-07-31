@@ -138,6 +138,15 @@ La primera version entrega busqueda vectorial con filtros obligatorios de tenant
 La segunda agrega busqueda textual, fusion de resultados y reranking. El contexto
 enviado al modelo conserva documento, version, pagina y posicion del fragmento.
 
+## Conversaciones
+
+Las conversaciones se consultan siempre dentro del tenant activo. Cada nuevo
+turno recupera fragmentos para la pregunta actual y combina ese contexto con una
+ventana acotada de mensajes recientes. El limite de turnos se valida antes de
+invocar al proveedor y de nuevo bajo bloqueo al persistir, evitando que dos
+solicitudes concurrentes excedan el limite de una conversacion. Las citas
+guardan una instantanea de la fuente y la puntuacion usada al recuperar.
+
 ## Seguridad
 
 - Contraseñas con un algoritmo adaptativo y secretos fuera del repositorio.

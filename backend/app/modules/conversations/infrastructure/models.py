@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -81,3 +82,4 @@ class MessageCitationModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     document_title: Mapped[str] = mapped_column(String(240), nullable=False)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    retrieval_score: Mapped[float] = mapped_column(Float, nullable=False)

@@ -46,9 +46,9 @@ los fallos pueden diagnosticarse y recuperarse.
 - [x] Primera vertical de conversaciones, mensajes y citas persistidas.
 - [x] Presupuesto inicial de contexto y defensa base contra instrucciones documentales.
 - [x] Registro de tokens reportados por el proveedor.
-- [ ] Continuidad de conversaciones con multiples turnos.
+- [x] Continuidad de conversaciones con multiples turnos e historial acotado.
 - [ ] Cuotas y limites de consumo por organizacion.
-- Pruebas de integracion con proveedores simulados.
+- [x] Pruebas de integracion con proveedores simulados.
 
 Criterio de salida: cada afirmacion recuperada enlaza a fragmentos persistidos y
 ninguna consulta cruza organizaciones.

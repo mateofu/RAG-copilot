@@ -73,6 +73,9 @@ def create_app() -> FastAPI:
     )
     app.state.retrieval_limit = settings.retrieval_limit
     app.state.max_context_characters = settings.max_context_characters
+    app.state.conversation_max_turns = settings.conversation_max_turns
+    app.state.conversation_history_messages = settings.conversation_history_messages
+    app.state.max_history_characters = settings.max_history_characters
     app.state.embedding_provider = build_embedding_provider(settings)
     password_hasher = Argon2PasswordHasher()
     app.state.password_hasher = password_hasher

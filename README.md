@@ -1,8 +1,8 @@
 # RAG Copilot
 
-Copiloto documental multiempresa basado en RAG. La identidad, autenticacion e
-ingesta PDF ya estan implementadas; el indice vectorial y las respuestas RAG
-pertenecen al siguiente hito.
+Copiloto documental multiempresa basado en RAG. El backend cubre identidad,
+autenticacion, ingesta PDF, recuperacion vectorial y conversaciones RAG
+persistentes de multiples turnos.
 
 ## Capacidades actuales
 
@@ -22,6 +22,7 @@ pertenecen al siguiente hito.
 - Embeddings semanticos locales con Ollama y `bge-m3`.
 - Proveedor hash determinista como respaldo para desarrollo y pruebas.
 - Busqueda vectorial trazable hasta documento, pagina y fragmento.
+- Conversaciones RAG de multiples turnos con historial y citas persistidas.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
 - Migraciones Alembic con extensiones `vector` y `citext`.
@@ -32,11 +33,10 @@ pertenecen al siguiente hito.
 
 ## Fuera del alcance actual
 
-Todavia no existen embeddings, recuperacion vectorial, conversaciones ni
-respuestas RAG. Consulta
-[la arquitectura](docs/ARCHITECTURE.md) y [el roadmap](docs/ROADMAP.md) antes de
-implementar un nuevo modulo. Las reglas para secretos y tokens estan en
-[seguridad](docs/SECURITY.md).
+La busqueda hibrida, el reranking, las cuotas por organizacion y la operacion de
+produccion pertenecen a hitos posteriores. Consulta
+[la arquitectura](docs/ARCHITECTURE.md), [el roadmap](docs/ROADMAP.md) y las
+reglas de [seguridad](docs/SECURITY.md) antes de ampliar el backend.
 
 ## Ejecucion con Docker
 
@@ -108,8 +108,18 @@ semantica de calidad.
 Conversaciones RAG:
 
 - `POST /api/v1/conversations`
+- `POST /api/v1/conversations/{conversationId}/messages`
+- `GET /api/v1/conversations?limit=20&offset=0`
+- `GET /api/v1/conversations/{conversationId}`
 - Cuerpo JSON: `{"question": "¿Qué dice el documento sobre vacaciones?"}`.
 - La respuesta incluye citas persistidas con documento, pagina y fragmento.
+- La continuacion utiliza el historial reciente, recupera contexto documental
+  para la pregunta actual y conserva el aislamiento por organizacion.
+- Por defecto se permiten 20 turnos por conversacion, se cargan los 10 mensajes
+  mas recientes y el historial se limita a 8000 caracteres. Se configuran con
+  `RAG_COPILOT_CONVERSATION_MAX_TURNS`,
+  `RAG_COPILOT_CONVERSATION_HISTORY_MESSAGES` y
+  `RAG_COPILOT_MAX_HISTORY_CHARACTERS`.
 - Solo se persisten citas referenciadas por el modelo; marcadores ausentes o
   fuera de rango invalidan la respuesta completa.
 - El chat usa localmente `qwen2.5:1.5b` mediante Ollama, sin cargos por uso.
