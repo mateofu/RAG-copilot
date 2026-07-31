@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     chat_max_concurrency: int = Field(default=1, ge=1, le=8)
     retrieval_limit: int = Field(default=5, ge=1, le=20)
     max_context_characters: int = Field(default=12_000, ge=1000, le=100_000)
+    conversation_max_turns: int = Field(default=20, ge=1, le=100)
+    conversation_history_messages: int = Field(default=10, ge=2, le=50)
+    max_history_characters: int = Field(default=8_000, ge=500, le=50_000)
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":

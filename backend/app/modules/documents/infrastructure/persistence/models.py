@@ -166,6 +166,12 @@ class DocumentChunkModel(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "embedding_provider",
             "embedding_model",
         ),
+        Index(
+            "ix_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
         ForeignKeyConstraint(
             ["organization_id", "document_id"],
             ["documents.organization_id", "documents.id"],
