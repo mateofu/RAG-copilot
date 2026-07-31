@@ -19,6 +19,9 @@ pertenecen al siguiente hito.
 - Metadatos, versiones y deduplicacion aislados por organizacion.
 - Outbox transaccional, publicador y worker Celery idempotente.
 - Extraccion de texto por pagina y fragmentacion persistida.
+- Embeddings semanticos locales con Ollama y `bge-m3`.
+- Proveedor hash determinista como respaldo para desarrollo y pruebas.
+- Busqueda vectorial trazable hasta documento, pagina y fragmento.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
 - Migraciones Alembic con extensiones `vector` y `citext`.
@@ -75,6 +78,45 @@ Carga documental:
   del contenido se validan antes de persistir sus metadatos.
 - La respuesta inicial queda en estado `pending`; el scheduler publica el evento
   y el worker actualiza la version a `ready` o `failed`.
+
+Busqueda vectorial:
+
+- `GET /api/v1/documents/search/chunks?query=<texto>&limit=5`
+- Requiere los mismos encabezados de autenticacion y organizacion.
+- Ollama procesa los textos localmente con `bge-m3`; no requiere API key ni
+  genera cargos por solicitud.
+
+Reindexacion:
+
+- `POST /api/v1/documents/reindex?limit=25`
+- Por defecto solo encola versiones con chunks sin embedding.
+- Usa `force=true` al cambiar de modelo o proveedor para regenerar todos los
+  embeddings de la organizacion en lotes idempotentes.
+
+El primer `docker compose up --build` descarga la imagen de Ollama y el modelo.
+La descarga queda persistida en el volumen `ollama_data`. Para trabajar sin el
+modelo temporalmente se puede usar:
+
+```powershell
+$env:RAG_COPILOT_EMBEDDING_PROVIDER="hashing"
+docker compose up -d --build
+```
+
+El modo `hashing` solo es un respaldo funcional y no ofrece recuperacion
+semantica de calidad.
+
+Conversaciones RAG:
+
+- `POST /api/v1/conversations`
+- Cuerpo JSON: `{"question": "¿Qué dice el documento sobre vacaciones?"}`.
+- La respuesta incluye citas persistidas con documento, pagina y fragmento.
+- Solo se persisten citas referenciadas por el modelo; marcadores ausentes o
+  fuera de rango invalidan la respuesta completa.
+- El chat usa localmente `qwen2.5:1.5b` mediante Ollama, sin cargos por uso.
+- El contexto tiene presupuesto limitado y los fragmentos se tratan como datos
+  no confiables para reducir el riesgo de prompt injection documental.
+- Cada vector registra proveedor y modelo; la busqueda nunca mezcla indices de
+  procedencias diferentes.
 
 El registro publico se controla con
 `RAG_COPILOT_PUBLIC_REGISTRATION_ENABLED`. Esta habilitado en el entorno local y

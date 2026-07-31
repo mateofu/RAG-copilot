@@ -23,6 +23,8 @@ from app.modules.documents.application.queries import (
     GetDocument,
     ListDocuments,
 )
+from app.modules.documents.application.reindex import ReindexDocuments
+from app.modules.documents.application.retrieval import RetrievedChunk, SearchDocumentChunks
 from app.modules.documents.application.storage import (
     DocumentStorageError,
     DocumentTooLargeError,
@@ -73,6 +75,26 @@ class DocumentListResponse(ApiModel):
     total: int
     limit: int
     offset: int
+
+
+class RetrievedChunkResponse(ApiModel):
+    chunk_id: UUID
+    document_id: UUID
+    document_number: int
+    document_title: str
+    version_id: UUID
+    chunk_index: int
+    page_number: int
+    content: str
+    score: float
+
+
+class DocumentSearchResponse(ApiModel):
+    items: list[RetrievedChunkResponse]
+
+
+class ReindexDocumentsResponse(ApiModel):
+    queued: int
 
 
 @router.post("", response_model=UploadDocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -174,6 +196,42 @@ async def list_documents(
     )
 
 
+@router.get("/search/chunks", response_model=DocumentSearchResponse)
+async def search_document_chunks(
+    request: Request,
+    context: Annotated[OrganizationContext, Depends(get_organization_context)],
+    query: Annotated[str, Query(min_length=1, max_length=1000)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+) -> DocumentSearchResponse:
+    items = await SearchDocumentChunks(
+        request.app.state.retrieval_uow_factory(),
+        request.app.state.embedding_provider,
+    ).execute(context, query, limit)
+    return DocumentSearchResponse(items=[retrieved_chunk_response(item) for item in items])
+
+
+@router.post("/reindex", response_model=ReindexDocumentsResponse)
+async def reindex_documents(
+    request: Request,
+    context: Annotated[OrganizationContext, Depends(get_organization_context)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    force: bool = False,
+) -> ReindexDocumentsResponse:
+    try:
+        result = await ReindexDocuments(request.app.state.reindex_uow_factory()).execute(
+            context,
+            limit,
+            force,
+        )
+    except OrganizationAccessDeniedError as error:
+        raise document_error(
+            status.HTTP_403_FORBIDDEN,
+            error.code,
+            "You do not have permission to reindex documents.",
+        ) from error
+    return ReindexDocumentsResponse(queued=result.queued)
+
+
 @router.get("/{document_number}", response_model=DocumentResponse)
 async def get_document(
     document_number: int,
@@ -216,4 +274,18 @@ def document_response(document: DocumentSummary) -> DocumentResponse:
         size_bytes=document.size_bytes,
         status=document.status,
         created_at=document.created_at,
+    )
+
+
+def retrieved_chunk_response(chunk: RetrievedChunk) -> RetrievedChunkResponse:
+    return RetrievedChunkResponse(
+        chunk_id=chunk.chunk_id,
+        document_id=chunk.document_id,
+        document_number=chunk.document_number,
+        document_title=chunk.document_title,
+        version_id=chunk.version_id,
+        chunk_index=chunk.chunk_index,
+        page_number=chunk.page_number,
+        content=chunk.content,
+        score=chunk.score,
     )

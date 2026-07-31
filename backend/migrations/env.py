@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.core.config import get_settings
 from app.infrastructure.database.base import Base
 from app.infrastructure.outbox import models as outbox_models  # noqa: F401
+from app.modules.conversations.infrastructure import models as conversation_models  # noqa: F401
 from app.modules.documents.infrastructure.persistence import models as document_models  # noqa: F401
 from app.modules.identity.infrastructure.persistence import models as identity_models  # noqa: F401
 

@@ -8,7 +8,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
     func,
     text,
 )
@@ -23,11 +22,6 @@ class OutboxEventModel(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "outbox_events"
     __table_args__ = (
         CheckConstraint("attempts >= 0", name="attempts_not_negative"),
-        UniqueConstraint(
-            "event_type",
-            "aggregate_id",
-            name="uq_outbox_events_event_type_aggregate_id",
-        ),
         Index(
             "ix_outbox_events_pending",
             "available_at",

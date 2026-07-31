@@ -10,10 +10,17 @@ from sqlalchemy import delete, select
 from app.infrastructure.database.session import SessionFactory, engine
 from app.infrastructure.outbox.models import OutboxEventModel
 from app.main import app
+from app.modules.conversations.application.chat import ChatResult
+from app.modules.conversations.infrastructure.models import (
+    ConversationMessageModel,
+    ConversationModel,
+    MessageCitationModel,
+)
 from app.modules.documents.application.ingestion import (
     IngestDocument,
     IngestDocumentCommand,
 )
+from app.modules.documents.infrastructure.embeddings.hashing import HashingEmbeddingProvider
 from app.modules.documents.infrastructure.extraction.pypdf import PyPdfTextExtractor
 from app.modules.documents.infrastructure.persistence.models import (
     DocumentChunkModel,
@@ -36,6 +43,12 @@ pytestmark = [
         reason="integration tests are disabled",
     ),
 ]
+
+
+class IntegrationChatProvider:
+    async def answer(self, system_prompt: str, user_prompt: str) -> ChatResult:
+        assert "integration document text" in user_prompt
+        return ChatResult("El documento contiene texto de integración [1].", 30, 9)
 
 
 def make_text_pdf(text: str) -> bytes:
@@ -90,6 +103,8 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
     )
     transport = ASGITransport(app=app)
     registration = None
+    original_embedding_provider = app.state.embedding_provider
+    original_chat_provider = app.state.chat_provider
 
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -184,6 +199,7 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
                 SqlAlchemyIngestionUnitOfWork(SessionFactory),
                 app.state.document_storage,
                 PyPdfTextExtractor(),
+                HashingEmbeddingProvider(),
             )
             ingestion_command = IngestDocumentCommand(
                 organization_id=UUID(organization_id),
@@ -234,6 +250,47 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
             assert document_detail.status_code == 200
             assert document_detail.json()["status"] == "ready"
 
+            app.state.embedding_provider = HashingEmbeddingProvider()
+            app.state.chat_provider = IntegrationChatProvider()
+            conversation = await client.post(
+                "/api/v1/conversations",
+                headers={
+                    "Authorization": f"Bearer {original['accessToken']}",
+                    "X-Organization-Id": organization_id,
+                },
+                json={"question": "¿Qué contiene el documento?"},
+            )
+            assert conversation.status_code == 201
+            conversation_body = conversation.json()
+            assert conversation_body["answer"].endswith("[1].")
+            assert len(conversation_body["citations"]) == 1
+            assert conversation_body["citations"][0]["pageNumber"] == 1
+
+            async with SessionFactory() as session:
+                stored_conversation = await session.get(
+                    ConversationModel,
+                    UUID(conversation_body["conversationId"]),
+                )
+                messages = (
+                    await session.scalars(
+                        select(ConversationMessageModel).where(
+                            ConversationMessageModel.conversation_id
+                            == UUID(conversation_body["conversationId"])
+                        )
+                    )
+                ).all()
+                citations = (
+                    await session.scalars(
+                        select(MessageCitationModel).where(
+                            MessageCitationModel.message_id == UUID(conversation_body["messageId"])
+                        )
+                    )
+                ).all()
+            assert stored_conversation is not None
+            assert len(messages) == 2
+            assert len(citations) == 1
+            assert citations[0].chunk_id == chunks[0].id
+
             rotation = await client.post(
                 "/api/v1/auth/refresh",
                 json={"refreshToken": original["refreshToken"]},
@@ -272,6 +329,8 @@ async def test_complete_authentication_lifecycle(tmp_path: Path) -> None:
             )
             assert identity_after_logout.status_code == 401
     finally:
+        app.state.embedding_provider = original_embedding_provider
+        app.state.chat_provider = original_chat_provider
         async with engine.begin() as connection:
             payload = registration.json() if registration is not None else {}
             organization_id = payload.get("organizationId")

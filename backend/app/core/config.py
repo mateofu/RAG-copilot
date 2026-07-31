@@ -38,6 +38,16 @@ class Settings(BaseSettings):
         ge=1024,
         le=100 * 1024 * 1024,
     )
+    embedding_provider: Literal["hashing", "ollama"] = "ollama"
+    embedding_model: str = Field(default="bge-m3", min_length=1, max_length=128)
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_timeout_seconds: float = Field(default=120.0, gt=0, le=300)
+    chat_model: str = Field(default="qwen2.5:1.5b", min_length=1, max_length=128)
+    chat_timeout_seconds: float = Field(default=180.0, gt=0, le=600)
+    chat_max_output_tokens: int = Field(default=512, ge=32, le=4096)
+    chat_max_concurrency: int = Field(default=1, ge=1, le=8)
+    retrieval_limit: int = Field(default=5, ge=1, le=20)
+    max_context_characters: int = Field(default=12_000, ge=1000, le=100_000)
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":

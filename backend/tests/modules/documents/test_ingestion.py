@@ -38,8 +38,14 @@ class FakeRepository:
         self,
         version: IngestionVersion,
         chunks: tuple[TextChunk, ...],
+        embeddings: tuple[tuple[float, ...], ...],
+        embedding_provider: str,
+        embedding_model: str,
     ) -> None:
         self.chunks = chunks
+        self.embeddings = embeddings
+        self.embedding_provider = embedding_provider
+        self.embedding_model = embedding_model
 
     async def mark_ready(self, version_id: object) -> None:
         self.status = DocumentStatus.READY
@@ -78,6 +84,15 @@ class FakeExtractor:
         return (ExtractedPage(page_number=1, text="extracted document text"),)
 
 
+class FakeEmbeddings:
+    dimensions = 3
+    provider_name = "fake"
+    model_name = "fake-v1"
+
+    async def embed(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
+        return tuple((1.0, 0.0, 0.0) for _ in texts)
+
+
 async def test_ingests_pending_version() -> None:
     repository = FakeRepository(DocumentStatus.PENDING)
     unit_of_work = FakeUnitOfWork(repository)
@@ -86,6 +101,7 @@ async def test_ingests_pending_version() -> None:
         unit_of_work,
         FakeStorage(),  # type: ignore[arg-type]
         FakeExtractor(),
+        FakeEmbeddings(),
     ).execute(
         IngestDocumentCommand(
             repository.version.organization_id,
@@ -96,6 +112,9 @@ async def test_ingests_pending_version() -> None:
     assert result.status is DocumentStatus.READY
     assert result.chunk_count == 1
     assert repository.status is DocumentStatus.READY
+    assert repository.embeddings == ((1.0, 0.0, 0.0),)
+    assert repository.embedding_provider == "fake"
+    assert repository.embedding_model == "fake-v1"
     assert unit_of_work.committed
 
 
@@ -106,6 +125,7 @@ async def test_ready_version_is_idempotent() -> None:
         FakeUnitOfWork(repository),
         FakeStorage(),  # type: ignore[arg-type]
         FakeExtractor(),
+        FakeEmbeddings(),
     ).execute(
         IngestDocumentCommand(
             repository.version.organization_id,

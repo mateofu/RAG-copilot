@@ -1,6 +1,7 @@
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,7 @@ from app.infrastructure.outbox.models import OutboxEventModel
 from app.modules.documents.application.ingestion import IngestionVersion
 from app.modules.documents.application.ports import DocumentRepository
 from app.modules.documents.application.queries import DocumentSummary
+from app.modules.documents.application.retrieval import RetrievedChunk
 from app.modules.documents.domain.chunking import TextChunk
 from app.modules.documents.domain.entities import Document, DocumentVersion
 from app.modules.documents.domain.errors import DuplicateDocumentError
@@ -107,6 +109,9 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
         self,
         version: IngestionVersion,
         chunks: tuple[TextChunk, ...],
+        embeddings: tuple[tuple[float, ...], ...],
+        embedding_provider: str,
+        embedding_model: str,
     ) -> None:
         await self._session.execute(
             delete(DocumentChunkModel).where(
@@ -125,9 +130,118 @@ class SqlAlchemyDocumentRepository(DocumentRepository):
                 char_start=chunk.char_start,
                 char_end=chunk.char_end,
                 content=chunk.content,
+                embedding=list(embedding),
+                embedding_provider=embedding_provider,
+                embedding_model=embedding_model,
             )
-            for chunk in chunks
+            for chunk, embedding in zip(chunks, embeddings, strict=True)
         )
+
+    async def search_chunks(
+        self,
+        organization_id: UUID,
+        embedding: tuple[float, ...],
+        embedding_provider: str,
+        embedding_model: str,
+        limit: int,
+    ) -> tuple[RetrievedChunk, ...]:
+        distance = DocumentChunkModel.embedding.cosine_distance(list(embedding))
+        statement = (
+            select(DocumentChunkModel, DocumentModel, distance.label("distance"))
+            .join(
+                DocumentModel,
+                (DocumentModel.id == DocumentChunkModel.document_id)
+                & (DocumentModel.organization_id == DocumentChunkModel.organization_id),
+            )
+            .where(
+                DocumentChunkModel.organization_id == organization_id,
+                DocumentChunkModel.embedding.is_not(None),
+                DocumentChunkModel.embedding_provider == embedding_provider,
+                DocumentChunkModel.embedding_model == embedding_model,
+            )
+            .order_by(distance)
+            .limit(limit)
+        )
+        rows = (await self._session.execute(statement)).all()
+        return tuple(
+            RetrievedChunk(
+                chunk_id=chunk.id,
+                document_id=document.id,
+                document_number=document.document_number,
+                document_title=document.title,
+                version_id=chunk.version_id,
+                chunk_index=chunk.chunk_index,
+                page_number=chunk.page_number,
+                content=chunk.content,
+                score=max(0.0, 1.0 - float(distance_value)),
+            )
+            for chunk, document, distance_value in rows
+        )
+
+    async def enqueue_reindex(
+        self,
+        organization_id: UUID,
+        limit: int,
+        force: bool,
+    ) -> int:
+        statement = (
+            select(DocumentVersionModel)
+            .where(
+                DocumentVersionModel.organization_id == organization_id,
+                DocumentVersionModel.status == DocumentStatus.READY,
+            )
+            .order_by(DocumentVersionModel.created_at, DocumentVersionModel.id)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        if not force:
+            statement = statement.where(
+                exists()
+                .where(
+                    DocumentChunkModel.organization_id == organization_id,
+                    DocumentChunkModel.version_id == DocumentVersionModel.id,
+                    DocumentChunkModel.embedding.is_(None),
+                )
+                .correlate(DocumentVersionModel)
+            )
+        versions = tuple((await self._session.scalars(statement)).all())
+        if not versions:
+            return 0
+
+        version_ids = tuple(version.id for version in versions)
+        events = tuple(
+            (
+                await self._session.scalars(
+                    select(OutboxEventModel).where(
+                        OutboxEventModel.event_type == "document.uploaded",
+                        OutboxEventModel.aggregate_id.in_(version_ids),
+                        OutboxEventModel.organization_id == organization_id,
+                    )
+                )
+            ).all()
+        )
+        events_by_version = {event.aggregate_id: event for event in events}
+        queued = 0
+        for version in versions:
+            original_event = events_by_version.get(version.id)
+            if original_event is None:
+                continue
+            version.status = DocumentStatus.PENDING
+            version.failure_code = None
+            version.failure_message = None
+            self._session.add(
+                OutboxEventModel(
+                    id=uuid4(),
+                    organization_id=organization_id,
+                    event_type="document.reindex_requested",
+                    aggregate_type="document_version",
+                    aggregate_id=version.id,
+                    payload=original_event.payload,
+                    occurred_at=datetime.now(UTC),
+                )
+            )
+            queued += 1
+        return queued
 
     async def mark_ready(self, version_id: UUID) -> None:
         model = await self._required_version(version_id)
