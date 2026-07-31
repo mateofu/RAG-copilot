@@ -90,6 +90,17 @@ services:
       ollama-chat-model:
         condition: service_completed_successfully
 
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
   worker:
     build: ./backend
     env_file: ./backend/.env
