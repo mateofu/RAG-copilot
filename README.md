@@ -23,6 +23,7 @@ persistentes de multiples turnos.
 - Proveedor hash determinista como respaldo para desarrollo y pruebas.
 - Busqueda vectorial trazable hasta documento, pagina y fragmento.
 - Conversaciones RAG de multiples turnos con historial y citas persistidas.
+- Interfaz web responsive para autenticacion, documentos, busqueda y chat.
 - Configuracion base de Celery con Redis.
 - PostgreSQL 17 con imagen de pgvector.
 - Migraciones Alembic con extensiones `vector` y `citext`.
@@ -50,6 +51,8 @@ API: `http://localhost:8000`
 OpenAPI: `http://localhost:8000/docs`
 
 Health check: `GET http://localhost:8000/api/v1/health`
+
+Frontend: `http://localhost:3000`
 
 Liveness: `GET http://localhost:8000/api/v1/health/live`
 
@@ -144,6 +147,17 @@ uv sync
 uv run uvicorn app.main:app --reload
 ```
 
+En otra terminal:
+
+```powershell
+Set-Location frontend
+Copy-Item .env.example .env
+npm ci
+npm run dev
+```
+
+Frontend local: `http://localhost:5173`
+
 ## Calidad
 
 ```powershell
@@ -152,6 +166,14 @@ uv run ruff format --check .
 uv run ruff check .
 uv run mypy app
 uv run pytest
+```
+
+```powershell
+Set-Location frontend
+npm run format:check
+npm run lint
+npm run test
+npm run build
 ```
 
 ## Migraciones
