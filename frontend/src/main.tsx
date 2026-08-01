@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./app/App";
 import { SessionProvider } from "./features/auth/presentation/SessionProvider";
+import { ErrorBoundary } from "./app/ErrorBoundary";
+import { ToastProvider } from "./shared/toast/ToastProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -15,9 +17,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <App />
-      </SessionProvider>
+      <ErrorBoundary>
+        <ToastProvider>
+          <SessionProvider>
+            <App />
+          </SessionProvider>
+        </ToastProvider>
+      </ErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 );

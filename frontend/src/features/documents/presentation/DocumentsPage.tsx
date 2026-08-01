@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus, RefreshCw, UploadCloud, X } from "lucide-react";
+import { FileText, Plus, RefreshCw, UploadCloud } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../core/http/api-error";
 import {
@@ -8,7 +8,9 @@ import {
   LoadingState,
 } from "../../../shared/components/AsyncState";
 import { PageHeader } from "../../../shared/components/PageHeader";
+import { Modal } from "../../../shared/components/Modal";
 import { formatBytes, formatDate } from "../../../shared/format";
+import { useToast } from "../../../shared/toast/toast-context";
 import { useSession } from "../../auth/presentation/session-context";
 import { HttpDocumentRepository } from "../infrastructure/http-document-repository";
 
@@ -25,6 +27,7 @@ export function DocumentsPage() {
   const organizationId = organization?.organizationId ?? "";
   const [uploadOpen, setUploadOpen] = useState(false);
   const queryClient = useQueryClient();
+  const notify = useToast();
   const documents = useQuery({
     queryKey: ["documents", organizationId],
     queryFn: () => repository.list(organizationId),
@@ -36,6 +39,10 @@ export function DocumentsPage() {
       repository.upload(organizationId, title, file),
     onSuccess: async () => {
       setUploadOpen(false);
+      notify(
+        "Documento recibido. La indexación continuará en segundo plano.",
+        "success",
+      );
       await queryClient.invalidateQueries({
         queryKey: ["documents", organizationId],
       });
@@ -133,65 +140,51 @@ export function DocumentsPage() {
         </div>
       )}
       {uploadOpen && (
-        <div className="modal-layer" role="presentation">
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="upload-title"
-          >
-            <button
-              className="modal-close"
-              onClick={() => setUploadOpen(false)}
-              aria-label="Cerrar"
-            >
-              <X />
-            </button>
-            <div className="upload-mark">
-              <UploadCloud />
-            </div>
-            <h2 id="upload-title">Subir documento</h2>
-            <p>
-              El PDF se procesará localmente y estará disponible al terminar la
-              indexación.
-            </p>
-            <form onSubmit={submit}>
-              <label>
-                Título
-                <input
-                  name="title"
-                  required
-                  maxLength={240}
-                  placeholder="Ej. Manual de vacaciones"
-                />
-              </label>
-              <label>
-                Archivo PDF
-                <input
-                  name="file"
-                  type="file"
-                  required
-                  accept="application/pdf,.pdf"
-                />
-              </label>
-              {upload.isError && (
-                <div className="inline-error">{errorMessage(upload.error)}</div>
-              )}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => setUploadOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button className="button primary" disabled={upload.isPending}>
-                  {upload.isPending ? "Subiendo…" : "Subir PDF"}
-                </button>
-              </div>
-            </form>
+        <Modal titleId="upload-title" onClose={() => setUploadOpen(false)}>
+          <div className="upload-mark">
+            <UploadCloud />
           </div>
-        </div>
+          <h2 id="upload-title">Subir documento</h2>
+          <p>
+            El PDF se procesará localmente y estará disponible al terminar la
+            indexación.
+          </p>
+          <form onSubmit={submit}>
+            <label>
+              Título
+              <input
+                name="title"
+                required
+                maxLength={240}
+                placeholder="Ej. Manual de vacaciones"
+              />
+            </label>
+            <label>
+              Archivo PDF
+              <input
+                name="file"
+                type="file"
+                required
+                accept="application/pdf,.pdf"
+              />
+            </label>
+            {upload.isError && (
+              <div className="inline-error">{errorMessage(upload.error)}</div>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setUploadOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button className="button primary" disabled={upload.isPending}>
+                {upload.isPending ? "Subiendo…" : "Subir PDF"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

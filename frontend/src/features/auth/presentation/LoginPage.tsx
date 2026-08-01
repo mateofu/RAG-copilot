@@ -1,9 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { errorMessage } from "../../../core/http/api-error";
+import { BrandLogo } from "../../../shared/components/BrandLogo";
 import { useSession } from "./session-context";
 
 const schema = z.object({
@@ -15,6 +23,7 @@ type FormValues = z.infer<typeof schema>;
 export function LoginPage() {
   const { login } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -32,74 +41,74 @@ export function LoginPage() {
 
   return (
     <main className="login-page">
-      <section className="login-story">
+      <section
+        className="login-visual"
+        aria-label="Documentos conectados mediante inteligencia semántica"
+      >
         <div className="brand-row login-brand">
-          <div className="brand-mark">R</div>
+          <BrandLogo />
           <strong>RAG Copilot</strong>
         </div>
-        <div className="story-content">
-          <span className="eyebrow light">Inteligencia documental privada</span>
-          <h1>
-            Pregunta con confianza.
-            <br />
-            Responde con evidencia.
-          </h1>
-          <p>
-            Convierte tus documentos en conocimiento consultable, manteniendo
-            cada respuesta conectada con su fuente original.
-          </p>
-          <ul>
-            <li>
-              <CheckCircle2 />
-              Modelos locales, sin costo por consulta
-            </li>
-            <li>
-              <CheckCircle2 />
-              Aislamiento seguro entre organizaciones
-            </li>
-            <li>
-              <CheckCircle2 />
-              Citas verificables por página y documento
-            </li>
-          </ul>
+        <div className="login-visual-caption">
+          <span>Conocimiento privado</span>
+          <strong>Respuestas conectadas con evidencia.</strong>
         </div>
-        <p className="story-footer">
-          Tus documentos permanecen bajo tu control.
-        </p>
       </section>
       <section className="login-form-wrap">
         <form className="login-form" onSubmit={handleSubmit(submit)}>
-          <div className="login-icon">
-            <LockKeyhole />
+          <div className="login-card-header">
+            <span className="trust-badge">
+              <ShieldCheck size={15} /> Espacio privado
+            </span>
+            <h1>Qué bueno verte</h1>
+            <p>
+              Ingresa para consultar tus documentos y continuar donde quedaste.
+            </p>
           </div>
-          <span className="eyebrow">Acceso seguro</span>
-          <h2>Bienvenido de nuevo</h2>
-          <p>Ingresa a tu espacio de conocimiento.</p>
           {error && (
             <div className="inline-error" role="alert">
               {error}
             </div>
           )}
-          <label>
-            Correo electrónico
-            <input
-              type="email"
-              autoComplete="email"
-              placeholder="tu@empresa.com"
-              {...register("email")}
-            />
+          <div className="login-field">
+            <label htmlFor="login-email">Correo electrónico</label>
+            <span className="login-input">
+              <Mail size={18} />
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                placeholder="tu@empresa.com"
+                {...register("email")}
+              />
+            </span>
             {errors.email && <small>{errors.email.message}</small>}
-          </label>
-          <label>
-            Contraseña
-            <input
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              {...register("password")}
-            />
+          </div>
+          <div className="login-field">
+            <label htmlFor="login-password">Contraseña</label>
+            <span className="login-input">
+              <LockKeyhole size={18} />
+              <input
+                id="login-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                {...register("password")}
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                aria-pressed={showPassword}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </span>
             {errors.password && <small>{errors.password.message}</small>}
-          </label>
+          </div>
           <button className="button primary wide" disabled={isSubmitting}>
             {isSubmitting ? (
               "Ingresando…"
@@ -110,7 +119,8 @@ export function LoginPage() {
             )}
           </button>
           <p className="privacy-note">
-            La sesión se conserva únicamente en esta pestaña.
+            <ShieldCheck size={13} /> Tu sesión se guarda únicamente en esta
+            pestaña.
           </p>
         </form>
       </section>

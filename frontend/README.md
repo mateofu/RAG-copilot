@@ -26,3 +26,7 @@ npm run build
 La sesión se conserva en `sessionStorage`; cerrar la pestaña elimina los tokens.
 El cliente rota automáticamente el refresh token ante un `401` y evita ejecutar
 más de una rotación concurrente.
+
+Las respuestas HTTP se validan en runtime con Zod. Las páginas se cargan bajo
+demanda, los fallos de render quedan contenidos por un Error Boundary y las
+operaciones anuncian su resultado mediante una región accesible de notificaciones.

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { sessionStore } from "../auth/session-store";
 import { apiRequest } from "./http-client";
+import { z } from "zod";
 
 describe("apiRequest", () => {
   it("adds tenant and authorization headers", async () => {
@@ -66,5 +67,24 @@ describe("apiRequest", () => {
     await expect(apiRequest("/documents")).rejects.toThrow("Tu sesión expiró");
     expect(sessionStore.read()).toBeNull();
     expect(expired).toHaveBeenCalledOnce();
+  });
+
+  it("rejects successful responses that violate their runtime contract", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ total: "not-a-number" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    await expect(
+      apiRequest("/documents", {}, z.object({ total: z.number() })),
+    ).rejects.toMatchObject({
+      status: 502,
+      code: "invalid_api_response",
+    });
   });
 });

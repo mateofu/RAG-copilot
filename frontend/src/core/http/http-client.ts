@@ -1,6 +1,7 @@
 import { config } from "../config";
 import { sessionStore, type Tokens } from "../auth/session-store";
 import { ApiError } from "./api-error";
+import { z, type ZodType } from "zod";
 
 type RequestOptions = RequestInit & {
   organizationId?: string;
@@ -9,6 +10,10 @@ type RequestOptions = RequestInit & {
 type ErrorPayload = { detail?: { code?: string; message?: string } };
 
 let refreshPromise: Promise<Tokens> | null = null;
+const tokenSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+});
 
 async function refreshSession(): Promise<Tokens> {
   const current = sessionStore.read();
@@ -26,13 +31,29 @@ async function refreshSession(): Promise<Tokens> {
       "Tu sesión expiró. Ingresa nuevamente.",
     );
   }
-  const payload = (await response.json()) as {
-    accessToken: string;
-    refreshToken: string;
-  };
+  let refreshPayload: unknown;
+  try {
+    refreshPayload = await response.json();
+  } catch {
+    sessionStore.expire();
+    throw new ApiError(
+      502,
+      "invalid_api_response",
+      "La API devolvió una sesión ilegible.",
+    );
+  }
+  const payload = tokenSchema.safeParse(refreshPayload);
+  if (!payload.success) {
+    sessionStore.expire();
+    throw new ApiError(
+      502,
+      "invalid_api_response",
+      "La API devolvió una sesión inválida.",
+    );
+  }
   const tokens = {
-    accessToken: payload.accessToken,
-    refreshToken: payload.refreshToken,
+    accessToken: payload.data.accessToken,
+    refreshToken: payload.data.refreshToken,
   };
   sessionStore.write(tokens);
   return tokens;
@@ -41,6 +62,7 @@ async function refreshSession(): Promise<Tokens> {
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
+  schema?: ZodType<T>,
 ): Promise<T> {
   const { organizationId, retry = true, headers, ...init } = options;
   const tokens = sessionStore.read();
@@ -60,7 +82,7 @@ export async function apiRequest<T>(
       refreshPromise = null;
     });
     await refreshPromise;
-    return apiRequest<T>(path, { ...options, retry: false });
+    return apiRequest<T>(path, { ...options, retry: false }, schema);
   }
   if (!response.ok) {
     let payload: ErrorPayload = {};
@@ -76,5 +98,24 @@ export async function apiRequest<T>(
     );
   }
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ApiError(
+      502,
+      "invalid_api_response",
+      "La API devolvió una respuesta ilegible.",
+    );
+  }
+  if (!schema) return payload as T;
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    throw new ApiError(
+      502,
+      "invalid_api_response",
+      "La API devolvió datos con un formato inesperado.",
+    );
+  }
+  return parsed.data;
 }
