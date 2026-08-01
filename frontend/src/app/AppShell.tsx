@@ -7,10 +7,17 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useState, type PropsWithChildren } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "../features/auth/presentation/session-context";
+import { BrandLogo } from "../shared/components/BrandLogo";
 
 const links = [
   { to: "/chat", label: "Copiloto", icon: MessageSquareText },
@@ -20,9 +27,24 @@ const links = [
 
 export function AppShell({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [location] = useLocation();
   const { identity, organization, selectOrganization, logout } = useSession();
   const queryClient = useQueryClient();
+
+  const closeMobileMenu = useCallback(() => {
+    setOpen(false);
+    window.setTimeout(() => menuButtonRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeMobileMenu();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open, closeMobileMenu]);
 
   function changeOrganization(id: string) {
     selectOrganization(id);
@@ -32,29 +54,35 @@ export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="app-frame">
       <button
+        ref={menuButtonRef}
         className="mobile-menu"
         onClick={() => setOpen(true)}
         aria-label="Abrir menú"
+        aria-expanded={open}
+        aria-controls="application-sidebar"
       >
         <Menu />
       </button>
       {open && (
         <button
           className="sidebar-backdrop"
-          onClick={() => setOpen(false)}
+          onClick={closeMobileMenu}
           aria-label="Cerrar menú"
         />
       )}
-      <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
+      <aside
+        id="application-sidebar"
+        className={`sidebar ${open ? "sidebar-open" : ""}`}
+      >
         <div className="brand-row">
-          <div className="brand-mark">R</div>
+          <BrandLogo />
           <div>
             <strong>RAG Copilot</strong>
             <span>Knowledge workspace</span>
           </div>
           <button
             className="close-menu"
-            onClick={() => setOpen(false)}
+            onClick={closeMobileMenu}
             aria-label="Cerrar menú"
           >
             <X />
@@ -84,6 +112,7 @@ export function AppShell({ children }: PropsWithChildren) {
               key={to}
               href={to}
               onClick={() => setOpen(false)}
+              aria-current={location.startsWith(to) ? "page" : undefined}
               className={
                 location.startsWith(to) ? "nav-link active" : "nav-link"
               }

@@ -5,12 +5,18 @@ import type {
   ConversationDetail,
   ConversationSummary,
 } from "../domain/conversation";
+import {
+  answerSchema,
+  conversationDetailSchema,
+  conversationPageSchema,
+} from "./conversation-schemas";
 
 export class HttpConversationRepository implements ConversationRepository {
   async list(organizationId: string): Promise<ConversationSummary[]> {
     const response = await apiRequest<{ items: ConversationSummary[] }>(
       "/conversations?limit=100&offset=0",
       { organizationId },
+      conversationPageSchema,
     );
     return response.items;
   }
@@ -19,7 +25,11 @@ export class HttpConversationRepository implements ConversationRepository {
     organizationId: string,
     conversationId: string,
   ): Promise<ConversationDetail> {
-    return apiRequest(`/conversations/${conversationId}`, { organizationId });
+    return apiRequest(
+      `/conversations/${conversationId}`,
+      { organizationId },
+      conversationDetailSchema,
+    );
   }
 
   ask(
@@ -30,10 +40,14 @@ export class HttpConversationRepository implements ConversationRepository {
     const path = conversationId
       ? `/conversations/${conversationId}/messages`
       : "/conversations";
-    return apiRequest(path, {
-      method: "POST",
-      organizationId,
-      body: JSON.stringify({ question }),
-    });
+    return apiRequest(
+      path,
+      {
+        method: "POST",
+        organizationId,
+        body: JSON.stringify({ question }),
+      },
+      answerSchema,
+    );
   }
 }

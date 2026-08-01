@@ -10,6 +10,6 @@ export interface DocumentRepository {
     organizationId: string,
     title: string,
     file: File,
-  ): Promise<DocumentItem>;
+  ): Promise<Omit<DocumentItem, "createdAt">>;
   search(organizationId: string, query: string): Promise<RetrievedChunk[]>;
 }
